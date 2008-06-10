@@ -13,32 +13,91 @@ typedef struct
 
 #include TARGET_VARS
 
-char* evaluate(const char* template, const char* value)
+char* parsevar(const char** s, int copy)
 {
     char* r;
-    char* o;
+    size_t l;
     const char* p;
-    size_t l = 0;
-    size_t lv = value ? strlen(value) : 0;
+    const char* q;
+    if(!s) return NULL;
+    p = *s;
+    if(*p++ != '$') return NULL; /* must start with $ */
+    if(*p++ != '{') return NULL; /* must be in ${var} format */
+    q = p;
+    while(*p && *p != '}')
+        ++p;
+    if(*p++ != '}') return NULL; /* malformed */
+    *s = p;
+    if (copy) {
+        size_t l = p - q - 1;
+        char* r = malloc(l + 1);
+        memcpy(r, q, l);
+        r[l] = 0;
+        return r;
+    }
+    return (char*)q;
+}
 
-    for(p = template; *p; ++p) {
-        if(*p == '%')
-            l += lv;
-        else
-            ++l;
+char* substenv(const char* template)
+{
+    int i;
+    const char* p;
+    size_t numvalues = 0;
+    const char** values;
+    size_t* lvalues;
+    size_t l = 0;
+    char* r;
+    char* o;
+
+    /* first pass: find out number of variables */
+    for(p = template; *p;) {
+        if(*p == '$' && (p == template || p[-1] != '\\')) {
+            /* if $ is not escaped it could be variable substitution */
+            if(parsevar(&p, 0)) {
+                ++numvalues;
+                continue;
+            }
+        }
+        ++p;
     }
 
-    r = malloc(l + 1);
-    for(o = r, p = template; *p; ++p) {
-        if(*p == '%') {
-            if(lv) {
-                memcpy(o, value, lv);
-                o += lv;
+    /* second pass: fetch variable values */
+    values = malloc(sizeof(const char*) * numvalues);
+    lvalues = malloc(sizeof(int*) * numvalues);
+    for(i = 0, p = template; *p;) {
+        if(*p == '$' && (p == template || p[-1] != '\\')) {
+            /* if $ is not escaped it could be variable substitution */
+            char* name = parsevar(&p, 1);
+            if(name) {
+                values[i] = getenv(name);
+                lvalues[i] = values[i] ? strlen(values[i]) : 0;
+                l += lvalues[i++];
+                free(name);
+                continue;
             }
-        } else
-            *o++ = *p;
+        }
+        ++p;
+        ++l;
+    }
+
+    /* third pass: construct the result */
+    o = r = malloc(l + 1);
+    for(i = 0, p = template; *p;) {
+        if(*p == '$' && (p == template || p[-1] != '\\')) {
+            /* if $ is not escaped it could be variable substitution */
+            if(parsevar(&p, 0)) {
+                if(lvalues[i])
+                    memcpy(o, values[i], lvalues[i]);
+                o += lvalues[i++];
+                continue;
+            }
+        }
+        *o++ = *p++;
     }
     *o = 0;
+
+    free(lvalues);
+    free(values);
     return r;
 }
 
@@ -60,7 +119,7 @@ void update_env(void)
     envupdate_t* e;
     for(e = envupdates; e->envname; ++e)
     {
-        char* v = evaluate(e->template, getenv(e->envname));
+        char* v = substenv(e->template);
         char* p = concat(e->envname, "=", v);
         putenv(p);
     }
