@@ -23,9 +23,6 @@
 #include <string.h>
 #include <process.h>
 
-#ifdef TARGET_VARS
-#include TARGET_VARS
-
 int system_execredir(const char* cmd, int* in)
 {
     int pid;
@@ -259,6 +256,9 @@ char* strsubst(const char* template)
     return r;
 }
 
+#ifdef TARGET_VARS
+#include TARGET_VARS
+
 void update_env(void)
 {
     const char** e;
@@ -280,7 +280,7 @@ int main(int argc, char** argv)
 {
     int i;
     args_t args = malloc(sizeof(char*) * (argc + 1));
-    args[0] = TARGET;
+    args[0] = strsubst(TARGET);
     for(i = 1; i < argc; ++i)
         args[i] = argv[i];
     args[argc] = NULL;
