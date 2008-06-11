@@ -5,15 +5,132 @@
 #include <process.h>
 
 #ifdef TARGET_VARS
-typedef struct
-{
-    const char* envname;
-    const char* template;
-} envupdate_t;
-
 #include TARGET_VARS
 
-char* parsevar(const char** s, int copy)
+int system_execredir(const char* cmd, int* in)
+{
+    int pid;
+    int fildes[2];
+
+    if(pipe(fildes) == -1)
+        return -1;
+    switch((pid = fork())) {
+        case -1: /* error */
+            close(fildes[0]);
+            close(fildes[1]);
+            break;
+        case 0: /* child */
+            close(fildes[0]);
+            dup2(fildes[1], 1);
+            close(fildes[1]);
+            exit(execlp("/bin/sh", "sh", "-c", cmd));
+            break;
+        default:
+            close(fildes[1]);
+            *in = fildes[0];
+            break;
+    }
+    return pid;
+}
+
+typedef struct
+{
+    size_t len;
+    char* buf;
+    void* next;
+} readchain_t;
+
+#define REDIR_BUF_SIZE 1024
+char* system_execread(const char* cmd)
+{
+    int in;
+    int pid;
+    size_t len;
+    char buf[REDIR_BUF_SIZE];
+    readchain_t* first = NULL;
+    readchain_t* last = NULL;
+    readchain_t* cur;
+    char* r;
+    char* o;
+
+    if((pid = system_execredir(cmd, &in)) <= 0) {
+        /* there was some error */
+        return NULL;
+    }
+
+    while((len = read(in, buf, REDIR_BUF_SIZE)) > 0) {
+        cur = malloc(sizeof(readchain_t));
+        cur->len = len;
+        cur->buf = malloc(len);
+        cur->next = NULL;
+        memcpy(cur->buf, buf, len);
+        if(!first) {
+            first = cur;
+            last = cur;
+        } else {
+            last->next = cur;
+            last = cur;
+        }
+    }
+    waitpid(pid);
+    close(in);
+
+    len = 0;
+    for(cur = first; cur; cur = cur->next) {
+        len += cur->len;
+    }
+
+    o = r = malloc(len + 1);
+    for(cur = first; cur; cur = cur->next) {
+        memcpy(o, cur->buf, cur->len);
+        o += cur->len;
+    }
+    *o = 0;
+
+    return r;
+}
+
+char* strstrip(const char* s, int dofree)
+{
+    const char* p;
+    const char* e;
+    size_t len;
+    char* r;
+
+    if(!s)
+        return NULL;
+    p = s;
+    e = s + strlen(s);
+    while(p != e && isspace(*p))
+        ++p;
+    while(e != p && isspace(e[-1]))
+        --e;
+    if(p == e)
+        return NULL;
+    len = e - p;
+    r = malloc(len + 1);
+    memcpy(r, p, len);
+    r[len] = 0;
+    if(dofree)
+        free((void*)s);
+    return r;
+}
+
+char* strcopy(const char* s)
+{
+    size_t len;
+    char* r;
+
+    if(!s)
+        return NULL;
+    len = strlen(s);
+    r = malloc(len + 1);
+    memcpy(r, s, len);
+    r[len] = 0;
+    return r;
+}
+
+char* do_parsevar(const char** s, int copy, char lp, char rp)
 {
     char* r;
     size_t l;
@@ -22,11 +139,11 @@ char* parsevar(const char** s, int copy)
     if(!s) return NULL;
     p = *s;
     if(*p++ != '$') return NULL; /* must start with $ */
-    if(*p++ != '{') return NULL; /* must be in ${var} format */
+    if(*p++ != lp) return NULL; /* must be in ${var} format */
     q = p;
-    while(*p && *p != '}')
+    while(*p && *p != rp)
         ++p;
-    if(*p++ != '}') return NULL; /* malformed */
+    if(*p++ != rp) return NULL; /* malformed */
     *s = p;
     if (copy) {
         size_t l = p - q - 1;
@@ -38,12 +155,23 @@ char* parsevar(const char** s, int copy)
     return (char*)q;
 }
 
-char* substenv(const char* template)
+char* parsevar_env(const char** s, int copy)
+{
+    return do_parsevar(s, copy, '{', '}');
+}
+
+char* parsevar_cmd(const char** s, int copy)
+{
+    return do_parsevar(s, copy, '(', ')');
+}
+
+char* strsubst(const char* template)
 {
     int i;
     const char* p;
     size_t numvalues = 0;
-    const char** values;
+    char* name;
+    char** values;
     size_t* lvalues;
     size_t l = 0;
     char* r;
@@ -53,7 +181,7 @@ char* substenv(const char* template)
     for(p = template; *p;) {
         if(*p == '$' && (p == template || p[-1] != '\\')) {
             /* if $ is not escaped it could be variable substitution */
-            if(parsevar(&p, 0)) {
+            if(parsevar_env(&p, 0) || parsevar_cmd(&p, 0)) {
                 ++numvalues;
                 continue;
             }
@@ -67,9 +195,15 @@ char* substenv(const char* template)
     for(i = 0, p = template; *p;) {
         if(*p == '$' && (p == template || p[-1] != '\\')) {
             /* if $ is not escaped it could be variable substitution */
-            char* name = parsevar(&p, 1);
-            if(name) {
-                values[i] = getenv(name);
+            if((name = parsevar_env(&p, 1))) {
+                values[i] = strcopy(getenv(name));
+                lvalues[i] = values[i] ? strlen(values[i]) : 0;
+                l += lvalues[i++];
+                free(name);
+                continue;
+            }
+            if((name = parsevar_cmd(&p, 1))) {
+                values[i] = strstrip(system_execread(name), 1);
                 lvalues[i] = values[i] ? strlen(values[i]) : 0;
                 l += lvalues[i++];
                 free(name);
@@ -85,7 +219,7 @@ char* substenv(const char* template)
     for(i = 0, p = template; *p;) {
         if(*p == '$' && (p == template || p[-1] != '\\')) {
             /* if $ is not escaped it could be variable substitution */
-            if(parsevar(&p, 0)) {
+            if(parsevar_env(&p, 0) || parsevar_cmd(&p, 0)) {
                 if(lvalues[i])
                     memcpy(o, values[i], lvalues[i]);
                 o += lvalues[i++];
@@ -96,32 +230,23 @@ char* substenv(const char* template)
     }
     *o = 0;
 
+    /* cleanup */
+    for(i = 0; i < numvalues; ++i) {
+        if(values[i])
+            free(values[i]);
+    }
     free(lvalues);
     free(values);
     return r;
 }
 
-char* concat(const char* s1, const char* s2, const char* s3)
-{
-    size_t l1 = strlen(s1);
-    size_t l2 = strlen(s2);
-    size_t l3 = strlen(s3);
-    char* r = malloc(l1 + l2 + l3 + 1);
-    r[0] = 0;
-    if(s1) strcat(r, s1);
-    if(s2) strcat(r, s2);
-    if(s3) strcat(r, s3);
-    return r;
-}
-
 void update_env(void)
 {
-    envupdate_t* e;
-    for(e = envupdates; e->envname; ++e)
+    const char** e;
+    for(e = envupdates; *e; ++e)
     {
-        char* v = substenv(e->template);
-        char* p = concat(e->envname, "=", v);
-        putenv(p);
+        char* v = strsubst(*e);
+        putenv(v);
     }
 }
 #endif
@@ -129,7 +254,7 @@ void update_env(void)
 #ifdef __MINGW32__
 typedef const char** args_t;
 #else
-typedef const char** args_t;
+typedef char** args_t;
 #endif
 
 int main(int argc, char** argv)
@@ -144,7 +269,11 @@ int main(int argc, char** argv)
     update_env();
 #endif
     errno = 0;
+#ifdef __MINGW32__
     int rc = spawnv(_P_WAIT, args[0], args);
+#else
+    int rc = execv(args[0], args);
+#endif
     if(rc == -1 && errno)
         fprintf(stderr, "Error: unable to run %s (errno=%d)\n", args[0], errno);
     free(args);

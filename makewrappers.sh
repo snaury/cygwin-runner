@@ -1,4 +1,5 @@
 #!/bin/sh
+./makewrapper.sh $HOME/shell-runners/cg.exe /bin/cg myvars.h
 ./makewrapper.sh $HOME/shell-runners/git.exe ${DFGITROOT}/bin/git myvars.h
 ./makewrapper.sh $HOME/shell-runners/gitk.exe ${DFGITROOT}/bin/gitk myvars.h
 ./makewrapper.sh $HOME/shell-runners/cygwin-ls.exe /bin/ls myvars.h
