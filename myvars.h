@@ -5,7 +5,7 @@ const char* envupdates[] = {
     "PS1=\\[\\e]0;\\w\\a\\]\\n\\[\\e[32m\\]\\u@\\h \\[\\e[33m\\]\\w\\[\\e[0m\\]\\n\\$ ",
     "CVS_RSH=/bin/ssh",
     "MAKE_MODE=unix",
-    //"USER=$(id -un)",
-    //"HOSTNAME=$(hostname)",
+    "USER=$(id -un)",
+    "HOSTNAME=$(hostname)",
     NULL,
 };
