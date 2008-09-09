@@ -6,5 +6,6 @@
 ./makewrapper.sh /bin-public/cygwin-ls.exe /bin/ls myvars.h
 ./makewrapper.sh /bin-public/cygwin-env.exe /bin/env myvars.h
 ./makewrapper.sh /bin-public/cygwin-bash.exe /bin/bash myvars.h
+./makewrapper.sh /bin-public/cygwin-perl.exe /bin/perl myvars.h
 ./makewrapper.sh /bin-public/cygwin-chmod.exe /bin/chmod myvars.h
 ./makewrapper.sh /bin-public/cygwin-python.exe /bin/python myvars.h
