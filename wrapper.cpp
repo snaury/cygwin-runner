@@ -206,7 +206,8 @@ inline void ss_write(std::stringstream& r, const std::string& s)
 
 inline void ss_write(std::stringstream& r, const char* p)
 {
-    ss_write(r, p, strlen(p));
+    if (p && *p)
+        ss_write(r, p, strlen(p));
 }
 
 bool strsubst_next(std::stringstream& r, const char*& s)
@@ -277,10 +278,9 @@ char* strsubst(const char* s)
 
 void update_env(void)
 {
-    const char** e;
-    for(e = envupdates; *e; ++e)
+    for(unsigned i = 0; envupdates[i]; ++i)
     {
-        char* v = strsubst(*e);
+        char* v = strsubst(envupdates[i]);
         putenv(v);
     }
 }

@@ -1,11 +1,20 @@
 #!/bin/sh
-./makewrapper.sh /bin-public/cg.exe /bin/cg myvars.h
-./makewrapper.sh /bin-public/git.exe '${DFGITROOT}/bin/git' myvars.h
-./makewrapper.sh /bin-public/gitk.exe '${DFGITROOT}/bin/gitk' myvars.h
-./makewrapper.sh /bin-public/cygpath.exe /bin/cygpath myvars.h
-./makewrapper.sh /bin-public/cygwin-ls.exe /bin/ls myvars.h
-./makewrapper.sh /bin-public/cygwin-env.exe /bin/env myvars.h
-./makewrapper.sh /bin-public/cygwin-bash.exe /bin/bash myvars.h
-./makewrapper.sh /bin-public/cygwin-perl.exe /bin/perl myvars.h
-./makewrapper.sh /bin-public/cygwin-chmod.exe /bin/chmod myvars.h
-./makewrapper.sh /bin-public/cygwin-python.exe /bin/python myvars.h
+
+TARGET=/bin-public/
+mkdir -p ${TARGET}
+cp /bin/cygwin1.dll ${TARGET}
+
+makewrapper() {
+    ./makewrapper.sh ${TARGET}$1 "$2" myvars.h
+}
+
+makewrapper cg.exe            /bin/cg
+makewrapper git.exe           '${DFGITROOT}/bin/git'
+makewrapper gitk.exe          '${DFGITROOT}/bin/gitk'
+makewrapper cygpath.exe       /bin/cygpath
+makewrapper cygwin-ls.exe     /bin/ls
+makewrapper cygwin-env.exe    /bin/env
+makewrapper cygwin-bash.exe   /bin/bash
+makewrapper cygwin-perl.exe   /bin/perl
+makewrapper cygwin-chmod.exe  /bin/chmod
+makewrapper cygwin-python.exe /bin/python
