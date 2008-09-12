@@ -8,6 +8,12 @@ makewrapper() {
     ./makewrapper.sh ${TARGET}$1 "$2" myvars.h
 }
 
+makewrapper_t() {
+  if [ -e $2 ] ; then
+    makewrapper "$@"
+  fi
+}
+
 makewrapper cg.exe            /bin/cg
 makewrapper git.exe           '${DFGITROOT}/bin/git'
 makewrapper gitk.exe          '${DFGITROOT}/bin/gitk'
@@ -18,3 +24,4 @@ makewrapper cygwin-bash.exe   /bin/bash
 makewrapper cygwin-perl.exe   /bin/perl
 makewrapper cygwin-chmod.exe  /bin/chmod
 makewrapper cygwin-python.exe /bin/python
+makewrapper_t cvsps.exe         /usr/local/bin/cvsps
