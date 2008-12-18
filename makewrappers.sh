@@ -17,11 +17,7 @@ makewrapper_t() {
 makewrapper cg.exe            /bin/cg
 makewrapper git.exe           '${DFGITROOT}/bin/git'
 makewrapper gitk.exe          '${DFGITROOT}/bin/gitk'
+makewrapper cygwin.exe        /bin/env
 makewrapper cygpath.exe       /bin/cygpath
-makewrapper cygwin-ls.exe     /bin/ls
-makewrapper cygwin-env.exe    /bin/env
-makewrapper cygwin-bash.exe   /bin/bash
-makewrapper cygwin-perl.exe   /bin/perl
-makewrapper cygwin-chmod.exe  /bin/chmod
-makewrapper cygwin-python.exe /bin/python
+makewrapper_t ruby.exe          /bin/ruby
 makewrapper_t cvsps.exe         /usr/local/bin/cvsps
