@@ -17,6 +17,7 @@ makewrapper_t() {
 makewrapper cg.exe            /bin/cg
 makewrapper git.exe           '${DFGITROOT}/bin/git'
 makewrapper gitk.exe          '${DFGITROOT}/bin/gitk'
+makewrapper ssh.exe           /bin/ssh
 makewrapper cygwin.exe        /bin/env
 makewrapper cygpath.exe       /bin/cygpath
 makewrapper_t ruby.exe          /bin/ruby
