@@ -5,7 +5,7 @@ mkdir -p ${TARGET}
 cp /bin/cygwin1.dll ${TARGET}
 
 makewrapper() {
-    ./makewrapper.sh ${TARGET}$1 "$2" myvars.h
+    ./compilerwrapper ${TARGET}$1 "$2" myvars.h
 }
 
 makewrapper_t() {
