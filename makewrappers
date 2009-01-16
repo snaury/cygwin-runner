@@ -1,18 +1,8 @@
 #!/bin/sh
 
-TARGET=/bin-public/
-mkdir -p ${TARGET}
+. wrapperfuncs.sh
+
 cp /bin/cygwin1.dll ${TARGET}
-
-makewrapper() {
-    ./compilerwrapper ${TARGET}$1 "$2" myvars.h
-}
-
-makewrapper_t() {
-  if [ -e $2 ] ; then
-    makewrapper "$@"
-  fi
-}
 
 makewrapper cg.exe            /bin/cg
 makewrapper git.exe           '${DFGITROOT}/bin/git'
