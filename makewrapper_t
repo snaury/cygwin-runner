@@ -1,5 +1,0 @@
-#!/bin/sh
-
-. wrapperfuncs.sh
-
-makewrapper_t "$@"

@@ -1,5 +1,25 @@
-#!/bin/sh
+#!/usr/bin/ruby
+require 'fileutils'
 
-. wrapperfuncs.sh
+TARGETDIR = "/bin-public"
+FileUtils.mkdir_p TARGETDIR
 
-makewrapper "$@"
+exename = ARGV[0]
+unless exename && !exename.empty?
+  puts "Usage: makewrapper.rb exename [target]"
+  exit 1
+end
+target = ARGV[1]
+target = "" unless target
+
+exename = File.join(TARGETDIR, exename.strip)
+target = target.strip
+data = File.open("cygwin-runner-win32.exe", "rb") do |f|
+  f.read
+end
+data << target
+data << [target.size].pack('I')
+File.open(exename, "wb") do |f|
+  f.write data
+  f.chmod 0777
+end
