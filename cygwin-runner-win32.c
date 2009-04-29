@@ -1,5 +1,5 @@
 #include <windows.h>
-#include "cygwin-runner-util.h"
+#include <stdio.h>
 
 char* get_module_filename(HINSTANCE hInstance)
 {
