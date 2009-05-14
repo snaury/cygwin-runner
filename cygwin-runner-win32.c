@@ -10,29 +10,43 @@ char* get_module_filename(HINSTANCE hInstance)
     return strdup(buffer);
 }
 
+typedef struct {
+    char* subkey;
+    char* value;
+} cygwin_registry_entry;
+
+cygwin_registry_entry cygwin_registry_entries[] = {
+    { "Software\\Cygwin\\setup", "rootdir" },
+    { "Software\\Cygnus Solutions\\Cygwin\\mounts v2\\/" },
+    { 0, 0 }
+};
+HKEY cygwin_registry_roots[] = { HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE };
+
 char* find_cygwin_root()
 {
     int i;
-    HKEY roots[] = { HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE };
-    for (i = 0; i < 2; ++i) {
-        HKEY hkey = 0;
-        DWORD dwType, cbData;
-        LPBYTE lpData;
-        if (RegOpenKeyEx(roots[i], "Software\\Cygnus Solutions\\Cygwin\\mounts v2\\/", 0, KEY_READ, &hkey))
-            continue;
-        if (RegQueryValueEx(hkey, "native", NULL, &dwType, NULL, &cbData) || dwType != REG_SZ || !cbData) {
+    cygwin_registry_entry* entry;
+    for (entry = cygwin_registry_entries; entry->subkey && entry->value; ++entry) {
+        for (i = 0; i < 2; ++i) {
+            HKEY hkey = 0;
+            DWORD dwType, cbData;
+            LPBYTE lpData;
+            if (RegOpenKeyEx(cygwin_registry_roots[i], entry->subkey, 0, KEY_READ, &hkey))
+                continue;
+            if (RegQueryValueEx(hkey, entry->value, NULL, &dwType, NULL, &cbData) || dwType != REG_SZ || !cbData) {
+                RegCloseKey(hkey);
+                continue;
+            }
+            lpData = malloc(cbData + 1);
+            if (RegQueryValueEx(hkey, entry->value, NULL, &dwType, lpData, &cbData) || dwType != REG_SZ || !cbData) {
+                free(lpData);
+                RegCloseKey(hkey);
+                continue;
+            }
+            lpData[cbData] = 0;
             RegCloseKey(hkey);
-            continue;
+            return (char*)lpData;
         }
-        lpData = malloc(cbData + 1);
-        if (RegQueryValueEx(hkey, "native", NULL, &dwType, lpData, &cbData) || dwType != REG_SZ || !cbData) {
-            free(lpData);
-            RegCloseKey(hkey);
-            continue;
-        }
-        lpData[cbData] = 0;
-        RegCloseKey(hkey);
-        return (char*)lpData;
     }
     return NULL;
 }

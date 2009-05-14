@@ -1,6 +1,9 @@
 @echo off
-set MAKEWRAPPER=C:\cygwin\bin\ruby.exe makewrapper
-copy cygwin-runner.exe C:\cygwin\bin\
+set CYGWIN_ROOT=C:\cygwin
+set MAKEWRAPPER=%CYGWIN_ROOT%\bin\ruby.exe makewrapper
+set CYGWIN_RUNNER_CONF=%CYGWIN_ROOT%\bin-public\.cygwin-runner.conf
+copy cygwin-runner.exe %CYGWIN_ROOT%\bin\
+if not exist %CYGWIN_RUNNER_CONF% copy cygwin-runner.conf %CYGWIN_RUNNER_CONF%
 
 %MAKEWRAPPER% cygwin.exe
 %MAKEWRAPPER% cygpath.exe /bin/cygpath
@@ -15,5 +18,8 @@ copy cygwin-runner.exe C:\cygwin\bin\
 %MAKEWRAPPER% perl.exe /bin/perl
 
 %MAKEWRAPPER% cg.exe /bin/cg
-%MAKEWRAPPER% git.exe "$DFGITROOT/bin/git"
-%MAKEWRAPPER% gitk.exe "$DFGITROOT/bin/gitk"
+%MAKEWRAPPER% git.exe "$DFGitRoot/bin/git"
+%MAKEWRAPPER% gitk.exe "$DFGitRoot/bin/gitk"
+
+%MAKEWRAPPER% gem.exe /bin/gem
+%MAKEWRAPPER% rake.exe /bin/rake
