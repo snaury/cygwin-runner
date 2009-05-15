@@ -16,8 +16,11 @@ typedef struct {
 } cygwin_registry_entry;
 
 cygwin_registry_entry cygwin_registry_entries[] = {
+#ifdef CYGWIN_1_7
     { "Software\\Cygwin\\setup", "rootdir" },
-    { "Software\\Cygnus Solutions\\Cygwin\\mounts v2\\/" },
+#else
+    { "Software\\Cygnus Solutions\\Cygwin\\mounts v2\\/", "native" },
+#endif
     { 0, 0 }
 };
 HKEY cygwin_registry_roots[] = { HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE };

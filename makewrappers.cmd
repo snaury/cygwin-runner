@@ -18,8 +18,8 @@ if not exist %CYGWIN_RUNNER_CONF% copy cygwin-runner.conf %CYGWIN_RUNNER_CONF%
 %MAKEWRAPPER% perl.exe /bin/perl
 
 %MAKEWRAPPER% cg.exe /bin/cg
-%MAKEWRAPPER% git.exe "$DFGitRoot/bin/git"
-%MAKEWRAPPER% gitk.exe "$DFGitRoot/bin/gitk"
+%MAKEWRAPPER% git.exe "$DFGITROOT/bin/git"
+%MAKEWRAPPER% gitk.exe "$DFGITROOT/bin/gitk"
 
 %MAKEWRAPPER% gem.exe /bin/gem
 %MAKEWRAPPER% rake.exe /bin/rake
