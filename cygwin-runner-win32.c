@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include <signal.h>
 
 char* get_module_filename(HINSTANCE hInstance)
 {
@@ -181,6 +182,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     strcat(lpFullCmd, lpCmdLine);
     //printf("full command: %s\n", lpFullCmd);
 
+    signal(SIGINT, SIG_IGN);
     if (run(lpFullCmd, &rc))
         fprintf(stderr, "Error executing: %s\n", lpFullCmd);
 
