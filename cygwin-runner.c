@@ -408,19 +408,28 @@ void update_env(const char* filename)
 
 /* Usage: program [arguments] */
 
+#ifndef CYGWIN_SHELL
+#define CYGWIN_SHELL "/bin/sh"
+#endif
+
 int main(int argc, char** argv)
 {
     int i;
+    int rc;
     char** args;
-
-    if (argc <= 1) {
-        fprintf(stderr, "Usage: %s program [arguments]\n", argv[0]);
-        return 1;
-    }
 
 #ifdef CYGWIN_RUNNER_CONF
     update_env(CYGWIN_RUNNER_CONF);
 #endif
+
+    if (argc <= 1) {
+        errno = 0;
+        rc = execl(CYGWIN_SHELL, CYGWIN_SHELL, NULL);
+        if(rc == -1 && errno)
+            fprintf(stderr, "Error: unable to run %s (errno=%d)\n", CYGWIN_SHELL, errno);
+        fprintf(stderr, "Usage: %s program [arguments]\n", argv[0]);
+        return rc;
+    }
 
     args = (char**)malloc(sizeof(char*) * (argc));
     args[0] = shell_subst(argv[1]);
@@ -429,7 +438,7 @@ int main(int argc, char** argv)
     args[argc - 1] = NULL;
 
     errno = 0;
-    int rc = execvp(args[0], args);
+    rc = execvp(args[0], args);
     if(rc == -1 && errno)
         fprintf(stderr, "Error: unable to run %s (errno=%d)\n", args[0], errno);
     free(args[0]);
