@@ -1,32 +1,86 @@
 #include <windows.h>
+#include <tchar.h>
 #include <stdio.h>
 #include <signal.h>
 
-char* get_module_filename(HINSTANCE hInstance)
+TCHAR* str2tcs(const char* p)
 {
-    char buffer[MAX_PATH+1];
-    buffer[0] = '\0';
-    GetModuleFileName(hInstance, buffer, MAX_PATH);
-    buffer[MAX_PATH] = '\0';
-    return strdup(buffer);
+#ifdef _UNICODE
+    TCHAR* r;
+    const char* pend = p + strlen(p);
+    int rlen = MultiByteToWideChar(CP_ACP, 0, p, pend - p + 1, 0, 0);
+    r = malloc(rlen * sizeof(TCHAR));
+    MultiByteToWideChar(CP_ACP, 0, p, pend - p + 1, r, rlen);
+    return r;
+#else
+    return strdup(p);
+#endif
 }
 
+TCHAR* get_module_filename(HINSTANCE hInstance)
+{
+    TCHAR buffer[MAX_PATH+1];
+    buffer[0] = _T('\0');
+    GetModuleFileName(hInstance, buffer, MAX_PATH);
+    buffer[MAX_PATH] = _T('\0');
+    return _tcsdup(buffer);
+}
+
+TCHAR* dirname(const TCHAR* p)
+{
+    TCHAR* r;
+    const TCHAR* p1 = _tcsrchr(p, _T('\\'));
+    const TCHAR* p2 = _tcsrchr(p, _T('/'));
+    const TCHAR* pend = p1 > p2 ? p1 : p2;
+    if (!pend)
+        return _tcsdup(_T(""));
+    r = malloc((pend - p + 1) * sizeof(TCHAR));
+    memcpy(r, p, (pend - p) * sizeof(TCHAR));
+    r[pend - p] = '\0';
+    return r;
+}
+
+TCHAR* join(const TCHAR* p1, const TCHAR* p2)
+{
+    TCHAR* r;
+    int p1len, p2len;
+    const TCHAR* p1end = p1 + _tcslen(p1);
+    const TCHAR* p2end = p2 + _tcslen(p2);
+    if (p1 == p1end)
+        return _tcsdup(p2);
+    if (p2 == p2end)
+        return _tcsdup(p1);
+    while (p1 != p1end && (p1end[-1] == _T('\\') || p1end[-1] == _T('/')))
+        --p1end;
+    while (p2 != p2end && (p2[0] == _T('\\') || p2[0] == _T('/')))
+        ++p2;
+    p1len = p1end - p1;
+    p2len = p2end - p2;
+    r = malloc((p1len + 1 + p2len + 1) * sizeof(TCHAR));
+    memcpy(r, p1, p1len * sizeof(TCHAR));
+    r[p1len] = _T('\\');
+    memcpy(r + p1len + 1, p2, p2len * sizeof(TCHAR));
+    r[p1len + 1 + p2len] = _T('\0');
+    return r;
+}
+
+#ifdef CYGWIN_SUPPORT_REGISTRY
 typedef struct {
-    char* subkey;
-    char* value;
+    TCHAR* subkey;
+    TCHAR* value;
 } cygwin_registry_entry;
 
 cygwin_registry_entry cygwin_registry_entries[] = {
 #ifdef CYGWIN_1_7
-    { "Software\\Cygwin\\setup", "rootdir" },
+    { _T("Software\\Cygwin\\setup"), _T("rootdir") },
 #else
-    { "Software\\Cygnus Solutions\\Cygwin\\mounts v2\\/", "native" },
+    { _T("Software\\Cygnus Solutions\\Cygwin\\mounts v2\\/"), _T("native") },
 #endif
     { 0, 0 }
 };
 HKEY cygwin_registry_roots[] = { HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE };
 
-char* find_cygwin_root()
+TCHAR* find_cygwin_root_registry()
 {
     int i;
     cygwin_registry_entry* entry;
@@ -41,18 +95,38 @@ char* find_cygwin_root()
                 RegCloseKey(hkey);
                 continue;
             }
-            lpData = malloc(cbData + 1);
+            lpData = malloc(cbData + sizeof(TCHAR));
             if (RegQueryValueEx(hkey, entry->value, NULL, &dwType, lpData, &cbData) || dwType != REG_SZ || !cbData) {
                 free(lpData);
                 RegCloseKey(hkey);
                 continue;
             }
-            lpData[cbData] = 0;
+            *(TCHAR*)(lpData + cbData) = _T('\0');
             RegCloseKey(hkey);
-            return (char*)lpData;
+            return (TCHAR*)lpData;
         }
     }
     return NULL;
+}
+#endif
+
+TCHAR* find_cygwin_root(const TCHAR* module_filename)
+{
+    TCHAR* module_dir = dirname(module_filename);
+    TCHAR* cygwin_root = dirname(module_dir);
+    TCHAR* cygwin_dll = join(cygwin_root, _T("bin\\cygwin1.dll"));
+    //_tprintf(_T("possible cygwin dll: %s\n"), cygwin_dll);
+    if (GetFileAttributes(cygwin_dll) == INVALID_FILE_ATTRIBUTES) {
+        free(cygwin_root);
+#ifdef CYGWIN_SUPPORT_REGISTRY
+        cygwin_root = find_cygwin_root_registry();
+#else
+        cygwin_root = NULL;
+#endif
+    }
+    free(cygwin_dll);
+    free(module_dir);
+    return cygwin_root;
 }
 
 /* Taken from Tcl sources */
@@ -60,7 +134,7 @@ static BOOL HasConsole()
 {
     HANDLE handle;
 
-    handle = CreateFileA("CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    handle = CreateFile(_T("CONOUT$"), GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (handle != INVALID_HANDLE_VALUE) {
         CloseHandle(handle);
@@ -71,7 +145,7 @@ static BOOL HasConsole()
 }
 
 /* Based on Tcl sources */
-static int run(char* command, int* orc)
+static int run(TCHAR* command, int* orc)
 {
     HANDLE hProcess;
     STARTUPINFO si;
@@ -109,48 +183,43 @@ static int run(char* command, int* orc)
     return 0;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+TCHAR* skip_program_name(TCHAR* p)
 {
+    int dq = 0;
+    while (*p > _T(' ') || (*p && dq)) {
+        if (*p == _T('"'))
+            dq = !dq;
+        ++p;
+    }
+    while (*p && *p <= _T(' '))
+        ++p;
+    return p;
+}
+
+int main(int argc, char** argv)
+{
+    HINSTANCE hInstance = GetModuleHandle(NULL);
+    LPTSTR lpCmdLine = skip_program_name(GetCommandLine());
     HANDLE hFile;
-    LPSTR lpModuleFileName = get_module_filename(hInstance);
-    LPSTR lpCygwinRoot = find_cygwin_root();
-    LPSTR lpCygwinRunner;
-    LPSTR lpCygwinTarget = NULL;
-    LPSTR lpFullCmd;
+    LPTSTR lpModuleFileName = get_module_filename(hInstance);
+    LPTSTR lpCygwinRoot = find_cygwin_root(lpModuleFileName);
+    LPTSTR lpCygwinRunner;
+    LPTSTR lpCygwinTarget = NULL;
+    LPTSTR lpFullCmd;
     DWORD dwFullCmdSize;
     int rc = 127;
-    char* p;
 
     if (!lpCygwinRoot) {
-        fprintf(stderr, "Error: Unable to find cygwin root\n");
+        _ftprintf(stderr, _T("Error: Unable to find cygwin root\n"));
         return rc;
     }
-    //printf("cygwin root: %s\n", lpCygwinRoot);
+    //_tprintf(_T("cygwin root: %s\n"), lpCygwinRoot);
 
-    lpCygwinRunner = malloc(strlen(lpCygwinRoot) + strlen(CYGWIN_RUNNER) + 2);
-    strcpy(lpCygwinRunner, lpCygwinRoot);
-    if (CYGWIN_RUNNER[0] == '/' || CYGWIN_RUNNER[0] == '\\') {
-        for (p = lpCygwinRunner + strlen(lpCygwinRunner); p != lpCygwinRunner; --p) {
-            if (p[-1] == '/' || p[-1] == '\\')
-                p[-1] = '\0';
-            else
-                break;
-        }
-    } else {
-        p = lpCygwinRunner + strlen(lpCygwinRunner);
-        if (p != lpCygwinRunner && (p[-1] != '/' && p[-1] != '\\')) {
-            *p++ = '\\';
-            *p = '\0';
-        }
-    }
-    strcat(lpCygwinRunner, CYGWIN_RUNNER);
-    for (p = lpCygwinRunner; *p; ++p)
-        if (*p == '/')
-            *p = '\\';
-    //printf("cygwin runner: %s\n", lpCygwinRunner);
+    lpCygwinRunner = join(lpCygwinRoot, _T(CYGWIN_RUNNER));
+    //_tprintf(_T("cygwin runner: %s\n"), lpCygwinRunner);
 
     if ((hFile = CreateFile(lpModuleFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Error: Unable to open %s\n", lpModuleFileName);
+        _ftprintf(stderr, _T("Error: Unable to open %s\n"), lpModuleFileName);
         return rc;
     }
     {
@@ -163,28 +232,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 p = malloc(size + 1);
                 if (ReadFile(hFile, p, size, &nread, NULL) && nread == size) {
                     p[size] = '\0';
-                    lpCygwinTarget = p;
-                } else
-                    free(p);
+                    lpCygwinTarget = str2tcs(p);
+                }
+                free(p);
             }
         }
     }
     CloseHandle(hFile);
 
-    dwFullCmdSize = strlen(lpCygwinRunner) + (lpCygwinTarget ? 1 + strlen(lpCygwinTarget) : 0) + 1 + strlen(lpCmdLine);
-    lpFullCmd = malloc(dwFullCmdSize + 1);
-    strcpy(lpFullCmd, lpCygwinRunner);
+    dwFullCmdSize = _tcslen(lpCygwinRunner) + (lpCygwinTarget ? 1 + _tcslen(lpCygwinTarget) : 0) + 1 + _tcslen(lpCmdLine);
+    lpFullCmd = malloc((dwFullCmdSize + 1) * sizeof(TCHAR));
+    _tcscpy(lpFullCmd, lpCygwinRunner);
     if (lpCygwinTarget) {
-        strcat(lpFullCmd, " ");
-        strcat(lpFullCmd, lpCygwinTarget);
+        _tcscat(lpFullCmd, _T(" "));
+        _tcscat(lpFullCmd, lpCygwinTarget);
     }
-    strcat(lpFullCmd, " ");
-    strcat(lpFullCmd, lpCmdLine);
-    //printf("full command: %s\n", lpFullCmd);
+    _tcscat(lpFullCmd, _T(" "));
+    _tcscat(lpFullCmd, lpCmdLine);
+    //_tprintf(_T("full command: %s\n"), lpFullCmd);
 
     signal(SIGINT, SIG_IGN);
     if (run(lpFullCmd, &rc))
-        fprintf(stderr, "Error executing: %s\n", lpFullCmd);
+        _ftprintf(stderr, _T("Error executing: %s\n"), lpFullCmd);
 
     return rc;
 }

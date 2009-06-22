@@ -5,5 +5,5 @@ cygwin-runner: cygwin-runner.c
 	chmod +x $@
 
 cygwin-runner-win32: cygwin-runner-win32.c
-	$(CC) -s -o $@ -mno-cygwin -DCYGWIN_RUNNER="\"/bin/cygwin-runner.exe\"" $(CFLAGS) $<
+	$(CC) -s -o $@ -mno-cygwin -D_UNICODE -DUNICODE -DCYGWIN_RUNNER="\"/bin/cygwin-runner.exe\"" $(CFLAGS) $<
 	chmod +x $@
