@@ -251,6 +251,9 @@ int main(int argc, char** argv)
     _tcscat(lpFullCmd, lpCmdLine);
     //_tprintf(_T("full command: %s\n"), lpFullCmd);
 
+#ifdef CYGWIN_LOCALE
+    putenv(CYGWIN_LOCALE);
+#endif
     signal(SIGINT, SIG_IGN);
     if (run(lpFullCmd, &rc))
         _ftprintf(stderr, _T("Error executing: %s\n"), lpFullCmd);
