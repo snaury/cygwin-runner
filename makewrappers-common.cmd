@@ -14,12 +14,7 @@ if not exist %CYGWIN_RUNNER_CONF_TARGET% copy %CYGWIN_RUNNER_CONF% %CYGWIN_RUNNE
 %MAKEWRAPPER% tar.exe /bin/tar
 
 %MAKEWRAPPER% ssh.exe /bin/ssh
-%MAKEWRAPPER% ruby.exe /bin/ruby
-%MAKEWRAPPER% perl.exe /bin/perl
 
 %MAKEWRAPPER% cg.exe /bin/cg
 %MAKEWRAPPER% git.exe "$DFGITROOT/bin/git"
 %MAKEWRAPPER% gitk.exe "$DFGITROOT/bin/gitk"
-
-%MAKEWRAPPER% gem.exe /bin/gem
-%MAKEWRAPPER% rake.exe /bin/rake
