@@ -196,6 +196,59 @@ TCHAR* skip_program_name(TCHAR* p)
     return p;
 }
 
+TCHAR* extract_cygwin_target(TCHAR* lpModuleFileName)
+{
+    TCHAR* result = NULL;
+    HANDLE hFile = CreateFile(
+        lpModuleFileName, GENERIC_READ, FILE_SHARE_READ, NULL,
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile != INVALID_HANDLE_VALUE) {
+        DWORD dwFileSize = GetFileSize(hFile, NULL);
+        HANDLE hMapping = CreateFileMapping(
+            hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+        if (hMapping != NULL) {
+            LPVOID lpExecutable = MapViewOfFile(
+                hMapping, FILE_MAP_READ, 0, 0, dwFileSize);
+            if (lpExecutable != NULL) {
+                IMAGE_DOS_HEADER* dos = lpExecutable;
+                if (dos->e_magic == IMAGE_DOS_SIGNATURE) {
+                    IMAGE_NT_HEADERS* nt = lpExecutable + dos->e_lfanew;
+                    if (nt->Signature == IMAGE_NT_SIGNATURE) {
+                        DWORD dwNumSections = nt->FileHeader.NumberOfSections;
+                        DWORD dwImageEnd = 0;
+                        IMAGE_SECTION_HEADER* sec = IMAGE_FIRST_SECTION(nt);
+                        while (dwNumSections--) {
+                            DWORD dwSectionEnd = sec->PointerToRawData + sec->SizeOfRawData;
+                            if (dwImageEnd < dwSectionEnd)
+                                dwImageEnd = dwSectionEnd;
+                            ++sec;
+                        }
+                        if (dwImageEnd <= dwFileSize) {
+                            DWORD size = dwFileSize - dwImageEnd;
+                            LPSTR data = malloc(size + 1);
+                            if (size)
+                                memcpy(data, lpExecutable + dwImageEnd, size);
+                            data[size] = 0;
+                            result = str2tcs(data);
+                            free(data);
+                        }
+                        //else _ftprintf(stderr, _T("Sections end is past file end"));
+                    }
+                    //else _ftprintf(stderr, _T("File doesn't have PE signature"));
+                }
+                //else _ftprintf(stderr, _T("File doesn't have MZ signature"));
+                UnmapViewOfFile(lpExecutable);
+            }
+            //else _ftprintf(stderr, _T("MapViewOfFile failed: 0x%08x\n"), GetLastError());
+            CloseHandle(hMapping);
+        }
+        //else _ftprintf(stderr, _T("CreateFileMapping failed: 0x%08x\n"), GetLastError());
+        CloseHandle(hFile);
+    }
+    //else _ftprintf(stderr, _T("Create failed: 0x%08x\n"), GetLastError());
+    return result;
+}
+
 int main(int argc, char** argv)
 {
     HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -218,27 +271,11 @@ int main(int argc, char** argv)
     lpCygwinRunner = join(lpCygwinRoot, _T(CYGWIN_RUNNER));
     //_tprintf(_T("cygwin runner: %s\n"), lpCygwinRunner);
 
-    if ((hFile = CreateFile(lpModuleFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)) == INVALID_HANDLE_VALUE) {
-        _ftprintf(stderr, _T("Error: Unable to open %s\n"), lpModuleFileName);
+    lpCygwinTarget = extract_cygwin_target(lpModuleFileName);
+    if (lpCygwinTarget == NULL) {
+        _ftprintf(stderr, _T("Error: Unable to extract target from %s\n"), lpModuleFileName);
         return rc;
     }
-    {
-        DWORD lenoffset = SetFilePointer(hFile, -4, NULL, FILE_END);
-        DWORD nread = 0;
-        LONG size = 0;
-        char* p;
-        if (ReadFile(hFile, &size, 4, &nread, NULL) && nread == 4 && size > 0) {
-            if (SetFilePointer(hFile, -size-4, NULL, FILE_END) == lenoffset - size) {
-                p = malloc(size + 1);
-                if (ReadFile(hFile, p, size, &nread, NULL) && nread == size) {
-                    p[size] = '\0';
-                    lpCygwinTarget = str2tcs(p);
-                }
-                free(p);
-            }
-        }
-    }
-    CloseHandle(hFile);
 
     dwFullCmdSize = _tcslen(lpCygwinRunner) + (lpCygwinTarget ? 1 + _tcslen(lpCygwinTarget) : 0) + 1 + _tcslen(lpCmdLine);
     lpFullCmd = malloc((dwFullCmdSize + 1) * sizeof(TCHAR));
