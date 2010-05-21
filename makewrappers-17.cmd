@@ -1,4 +1,5 @@
 @echo off
-set CYGWIN_ROOT=C:\cygwin-1.7
-set MAKEWRAPPER=%CYGWIN_ROOT%\bin\ruby.exe makewrapper.rb --1.7
+set CYGWIN_ROOT=C:\cygwin
+set CYGWIN_PUBLIC=%CYGWIN_ROOT%\bin-public
+set MAKEWRAPPER=python makewrapper.py %CYGWIN_PUBLIC% cygwin-runner-win32-17.exe
 call makewrappers-common.cmd
