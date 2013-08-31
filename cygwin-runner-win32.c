@@ -71,11 +71,7 @@ typedef struct {
 } cygwin_registry_entry;
 
 cygwin_registry_entry cygwin_registry_entries[] = {
-#ifdef CYGWIN_1_7
     { _T("Software\\Cygwin\\setup"), _T("rootdir") },
-#else
-    { _T("Software\\Cygnus Solutions\\Cygwin\\mounts v2\\/"), _T("native") },
-#endif
     { 0, 0 }
 };
 HKEY cygwin_registry_roots[] = { HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE };
@@ -249,7 +245,7 @@ TCHAR* extract_cygwin_target(TCHAR* lpModuleFileName)
     return result;
 }
 
-int main(int argc, char** argv)
+int _tmain(int argc, char** argv)
 {
     HINSTANCE hInstance = GetModuleHandle(NULL);
     LPTSTR lpCmdLine = skip_program_name(GetCommandLine());

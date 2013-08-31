@@ -23,6 +23,7 @@
 #include <process.h>
 #include <sys/wait.h>
 #include <sys/errno.h>
+#include <sys/unistd.h>
 #include "cygwin-runner-util.h"
 
 /* arguments parsing */
