@@ -7,11 +7,11 @@ if not exist %CYGWIN_PUBLIC%\nul mkdir %CYGWIN_PUBLIC%
 if not exist %CYGWIN_RUNNER_CONF_TARGET% copy %CYGWIN_RUNNER_CONF% %CYGWIN_RUNNER_CONF_TARGET%
 
 %MAKEWRAPPER% cygwin.exe
-%MAKEWRAPPER% cygpath.exe /bin/cygpath
-%MAKEWRAPPER% diff.exe /bin/diff
-%MAKEWRAPPER% grep.exe /bin/grep
-%MAKEWRAPPER% less.exe /bin/less
-%MAKEWRAPPER% tee.exe /bin/tee
-%MAKEWRAPPER% tar.exe /bin/tar
+%MAKEWRAPPER% cygpath.exe /usr/bin/cygpath
+%MAKEWRAPPER% diff.exe /usr/bin/diff
+%MAKEWRAPPER% grep.exe /usr/bin/grep
+%MAKEWRAPPER% less.exe /usr/bin/less
+%MAKEWRAPPER% tee.exe /usr/bin/tee
+%MAKEWRAPPER% tar.exe /usr/bin/tar
 
-%MAKEWRAPPER% ssh.exe /bin/ssh
+%MAKEWRAPPER% ssh.exe /usr/bin/ssh
